@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "lead", "member"] },
+        "teamId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Team information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "leadId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "leadId"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A productivity task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in-progress", "completed"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "assigneeId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "timeSpent": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status", "priority"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Short-term or long-term goal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["short-term", "long-term"] },
+        "targetDate": { "type": "string", "format": "date-time" },
+        "progress": { "type": "number" },
+        "userId": { "type": "string" },
+        "teamId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "targetDate"]
+    },
+    "TimeLog": {
+      "title": "Time Log",
+      "description": "Tracking time spent on a task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "userId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number" }
+      },
+      "required": ["taskId", "userId", "startTime"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Message in team chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teamId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamId", "senderId", "message"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback and suggestions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "message"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Team data"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Tasks"
+    },
+    "/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "Goals"
+    },
+    "/timeLogs/{logId}": {
+      "schema": "TimeLog",
+      "description": "Time logs"
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "User feedback"
+    }
+  }
+}
