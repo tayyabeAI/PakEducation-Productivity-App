@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuthProvider, useAuth } from './lib/AuthContext';
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { Toaster } from 'sonner';
 import { useState } from 'react';
 import { 
@@ -20,23 +20,23 @@ import {
   ShieldCheck,
   BarChart3
 } from 'lucide-react';
-import { Button } from './components/ui/button';
-import { ScrollArea } from './components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from './components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Components (to be implemented)
-import Dashboard from './components/Dashboard';
-import Tasks from './components/Tasks';
-import Goals from './components/Goals';
-import TimeTracker from './components/TimeTracker';
-import Team from './components/Team';
-import Chat from './components/Chat';
-import AdminPanel from './components/AdminPanel';
-import LandingPage from './components/LandingPage';
-import Reports from './components/Reports';
-import SessionTracker from './components/SessionTracker';
-import InvitationsBanner from './components/InvitationsBanner';
+import Dashboard from '@/components/Dashboard';
+import Tasks from '@/components/Tasks';
+import Goals from '@/components/Goals';
+import TimeTracker from '@/components/TimeTracker';
+import Team from '@/components/Team';
+import Chat from '@/components/Chat';
+import AdminPanel from '@/components/AdminPanel';
+import LandingPage from '@/components/LandingPage';
+import Reports from '@/components/Reports';
+import SessionTracker from '@/components/SessionTracker';
+import InvitationsBanner from '@/components/InvitationsBanner';
 
 function AppContent() {
   const { user, loading, signIn, logout } = useAuth();
