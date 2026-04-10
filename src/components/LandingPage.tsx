@@ -1,8 +1,12 @@
 import { Button } from './ui/button';
-import { motion } from 'motion/react';
-import { CheckCircle2, Clock, Shield, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle2, Clock, Shield, Zap, Play, X as CloseIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 export default function LandingPage({ onSignIn }: { onSignIn: () => void }) {
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-primary selection:text-white">
       {/* Hero Section */}
@@ -11,7 +15,7 @@ export default function LandingPage({ onSignIn }: { onSignIn: () => void }) {
           <nav className="flex items-center justify-between mb-24">
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl">P</div>
-              <span className="text-2xl font-bold tracking-tight">PakEducation</span>
+              <span className="text-2xl font-bold tracking-tight">PakEducation Productivity App</span>
             </div>
             <Button onClick={onSignIn} size="lg" className="rounded-full px-8">Sign In</Button>
           </nav>
@@ -30,7 +34,15 @@ export default function LandingPage({ onSignIn }: { onSignIn: () => void }) {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button onClick={onSignIn} size="lg" className="rounded-full text-lg px-10 h-16">Get Started Free</Button>
-                <Button variant="outline" size="lg" className="rounded-full text-lg px-10 h-16">View Demo</Button>
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="rounded-full text-lg px-10 h-16 group"
+                  onClick={() => setIsVideoOpen(true)}
+                >
+                  <Play className="mr-2 h-5 w-5 fill-current group-hover:text-primary transition-colors" />
+                  View Demo
+                </Button>
               </div>
             </motion.div>
             <motion.div
@@ -85,6 +97,54 @@ export default function LandingPage({ onSignIn }: { onSignIn: () => void }) {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-12 border-t border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-6 text-center">
+          <div className="text-slate-500 text-sm font-medium">
+            © 2026. Idea By Muhammad Tayyab
+          </div>
+          <div className="flex items-center space-x-4">
+            <a 
+              href="https://www.instagram.com/tayyabegaming" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-primary hover:text-white transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+            </a>
+            <a 
+              href="https://www.facebook.com/tayyabegaming" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-primary hover:text-white transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            </a>
+          </div>
+        </div>
+      </footer>
+
+      {/* Video Modal */}
+      <Dialog open={isVideoOpen} onOpenChange={setIsVideoOpen}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Product Demo Video</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-video w-full relative flex flex-col items-center justify-center bg-slate-900 text-white p-12 text-center">
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mb-6 animate-pulse">
+              <Play className="w-10 h-10 text-primary fill-current" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">Demo Video Coming Soon</h3>
+            <p className="text-slate-400 max-w-md">
+              We are currently recording a detailed walkthrough of the PakEducation Productivity App. Check back soon!
+            </p>
+            <div className="absolute bottom-4 right-4 text-xs text-slate-500 font-mono">
+              v1.0.0-beta
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
