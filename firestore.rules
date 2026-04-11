@@ -86,7 +86,12 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        isSuperAdmin() ||
+        (resource.data.email == request.auth.token.email) ||
+        (resource.data.teamId != null && resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds)
+      );
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role != 'admin' || isAdmin());
       allow update: if (isOwner(userId) && 
                        request.resource.data.role == resource.data.role && 
@@ -96,7 +101,7 @@ service cloud.firestore {
     }
 
     match /sessions/{sessionId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
@@ -111,25 +116,28 @@ service cloud.firestore {
 
     match /tasks/{taskId} {
       allow read: if isSuperAdmin() || 
-                    (isAuthenticated() && (resource.data.teamId == null || 
-                     resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds));
+                    (isAuthenticated() && (
+                      (resource.data.teamId != null && resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds) ||
+                      resource.data.assigneeId == request.auth.uid ||
+                      (request.auth.uid in resource.data.assigneeIds)
+                    ));
       allow create: if isAuthenticated() && isValidTask(request.resource.data);
       allow update: if isAuthenticated() && isValidTask(request.resource.data);
       allow delete: if isAuthenticated();
     }
 
     match /goals/{goalId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     match /timeLogs/{logId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     match /chats/{chatId} {
@@ -147,6 +155,29 @@ service cloud.firestore {
       allow create: if isAuthenticated() && (isTeamLead(request.resource.data.teamId) || isAdmin());
       allow update: if isAuthenticated() && (request.auth.token.email == resource.data.email || isTeamLead(resource.data.teamId) || isAdmin());
       allow delete: if isAuthenticated() && (isTeamLead(resource.data.teamId) || isAdmin());
+    }
+
+    match /team_data/{recordId} {
+      allow read: if isSuperAdmin() || 
+                    (isAuthenticated() && (
+                      (resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds && (isTeamLead(resource.data.teamId) || isAdmin())) ||
+                      (resource.data.assignedUserId == request.auth.uid) ||
+                      (resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds && (!('assignedUserId' in resource.data) || resource.data.assignedUserId == null))
+                    ));
+      allow create: if isAuthenticated() && (isSuperAdmin() || isTeamLead(request.resource.data.teamId) || isAdmin());
+      allow update: if isSuperAdmin() || 
+                    (isAuthenticated() && (
+                      isTeamLead(resource.data.teamId) || 
+                      isAdmin() ||
+                      resource.data.assignedUserId == request.auth.uid
+                    ));
+      allow delete: if isSuperAdmin() || isTeamLead(resource.data.teamId) || isAdmin();
+    }
+    
+    match /activity_logs/{logId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds);
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
     }
 
     match /test/connection {

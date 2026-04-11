@@ -125,8 +125,15 @@ export default function Tasks() {
     if (!user) return;
 
     let q;
-    if (user.role === 'admin') {
+    if (user.role === 'super-admin') {
       q = query(collection(db, 'tasks'));
+    } else if (user.role === 'admin') {
+      // Admins see tasks for teams they are part of
+      if (user.teamIds && user.teamIds.length > 0) {
+        q = query(collection(db, 'tasks'), where('teamId', 'in', user.teamIds));
+      } else {
+        q = query(collection(db, 'tasks'), where('assigneeId', '==', user.uid));
+      }
     } else if (user.teamId) {
       q = query(collection(db, 'tasks'), where('teamId', '==', user.teamId));
     } else {

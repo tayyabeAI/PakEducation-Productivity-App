@@ -95,3 +95,27 @@ export interface Invitation {
   createdAt: any;
   description?: string;
 }
+
+export interface TeamDataRecord {
+  id?: string;
+  teamId: string;
+  batchId: string;
+  sheetName: string;
+  assignedUserId?: string | null;
+  dataFields: Record<string, any>;
+  status: string;
+  createdBy: string;
+  createdAt: any;
+  updatedBy?: string;
+  updatedAt?: any;
+}
+
+export interface ActivityLog {
+  id?: string;
+  teamId: string;
+  action: 'upload' | 'assignment' | 'update';
+  details: string;
+  userId: string;
+  timestamp: any;
+  recordId?: string;
+}

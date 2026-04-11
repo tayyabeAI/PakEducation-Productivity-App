@@ -6,6 +6,48 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+@layer base {
+  @media print {
+    .no-print,
+    button,
+    nav,
+    aside,
+    header:not(.print-header),
+    .dialog-overlay,
+    .dialog-content:not(.print-content) {
+      display: none !important;
+    }
+    
+    body {
+      background: white !important;
+      color: black !important;
+    }
+    
+    .print-only {
+      display: block !important;
+    }
+    
+    .card {
+      box-shadow: none !important;
+      border: 1px solid #eee !important;
+    }
+    
+    table {
+      width: 100% !important;
+      border-collapse: collapse !important;
+    }
+    
+    th, td {
+      border: 1px solid #ddd !important;
+      padding: 8px !important;
+    }
+  }
+}
+
+.print-only {
+  display: none;
+}
+
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";

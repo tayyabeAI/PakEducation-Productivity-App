@@ -68,8 +68,20 @@ export default function Chat() {
   useEffect(() => {
     if (chatType === 'direct') {
       const fetchUsers = async () => {
-        const s = await getDocs(collection(db, 'users'));
-        setUsers(s.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)).filter(u => u.uid !== user?.uid));
+        try {
+          let q;
+          if (user?.role === 'super-admin') {
+            q = query(collection(db, 'users'));
+          } else if (user?.teamId) {
+            q = query(collection(db, 'users'), where('teamId', '==', user.teamId));
+          } else {
+            q = query(collection(db, 'users'), where('uid', '==', user?.uid));
+          }
+          const s = await getDocs(q);
+          setUsers(s.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile)).filter(u => u.uid !== user?.uid));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.LIST, 'users');
+        }
       };
       fetchUsers();
     }

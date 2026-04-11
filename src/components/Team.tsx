@@ -10,9 +10,11 @@ import { Badge } from './ui/badge';
 import { Users, UserPlus, Shield, Settings, Mail, Clock, X, LogIn, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from './ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
 import InviteDialog from './InviteDialog';
+import TeamDataView from './TeamDataView';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 
 export default function Team() {
@@ -297,128 +299,141 @@ export default function Team() {
               onOpenChange={setIsInviteDialogOpen} 
             />
 
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="border-none shadow-sm">
-                  <CardHeader><CardTitle className="text-lg">Team Members</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="divide-y divide-slate-100">
-                      {members.map(member => (
-                        <div key={member.uid} className="py-4 flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <Avatar>
-                              <AvatarImage src={member.photoURL} />
-                              <AvatarFallback>{member.displayName[0]}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold">{member.displayName}</p>
-                              <div className="flex items-center space-x-2 text-xs text-slate-500">
-                                <span>{member.email}</span>
-                                {member.lastLogin && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="flex items-center">
-                                      <LogIn className="w-3 h-3 mr-1" />
-                                      Active {formatDistanceToNow(member.lastLogin.toDate(), { addSuffix: true })}
-                                    </span>
-                                  </>
-                                )}
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="mb-6">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="data">Data Records</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview">
+                <div className="grid lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-6">
+                    <Card className="border-none shadow-sm">
+                      <CardHeader><CardTitle className="text-lg">Team Members</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="divide-y divide-slate-100">
+                          {members.map(member => (
+                            <div key={member.uid} className="py-4 flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <Avatar>
+                                  <AvatarImage src={member.photoURL} />
+                                  <AvatarFallback>{member.displayName[0]}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-semibold">{member.displayName}</p>
+                                  <div className="flex items-center space-x-2 text-xs text-slate-500">
+                                    <span>{member.email}</span>
+                                    {member.lastLogin && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="flex items-center">
+                                          <LogIn className="w-3 h-3 mr-1" />
+                                          Active {formatDistanceToNow(member.lastLogin.toDate(), { addSuffix: true })}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                <Badge variant="secondary" className="capitalize">
+                                  {member.role === 'lead' && (member.teamIds?.length || 0) > 1 ? 'Super Leader' : member.role}
+                                </Badge>
+                                <Button variant="ghost" size="icon"><Mail className="w-4 h-4" /></Button>
                               </div>
                             </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {pendingInvites.length > 0 && (
+                      <Card className="border-none shadow-sm">
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Clock className="w-5 h-5 text-orange-500" />
+                            Pending Invitations
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="divide-y divide-slate-100">
+                            {pendingInvites.map(invite => (
+                              <div key={invite.id} className="py-4 flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                                    <Mail className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold">{invite.email}</p>
+                                    <p className="text-xs text-slate-500">Invited as {invite.role}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Pending</Badge>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                    onClick={() => cancelInvite(invite.id!)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <Badge variant="secondary" className="capitalize">
-                              {member.role === 'lead' && (member.teamIds?.length || 0) > 1 ? 'Super Leader' : member.role}
-                            </Badge>
-                            <Button variant="ghost" size="icon"><Mail className="w-4 h-4" /></Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  <div className="space-y-6">
+                    <Card className="border-none shadow-sm bg-primary text-white">
+                      <CardHeader><CardTitle className="text-lg">Team Productivity</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="text-center py-6">
+                          <h3 className="text-5xl font-bold">92%</h3>
+                          <p className="text-primary-foreground/70 text-sm mt-2">Average Efficiency</p>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span>Weekly Target</span>
+                            <span>92/100</span>
+                          </div>
+                          <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                            <div className="h-full bg-white w-[92%]" />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
 
-                {pendingInvites.length > 0 && (
-                  <Card className="border-none shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-orange-500" />
-                        Pending Invitations
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="divide-y divide-slate-100">
-                        {pendingInvites.map(invite => (
-                          <div key={invite.id} className="py-4 flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                                <Mail className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="font-semibold">{invite.email}</p>
-                                <p className="text-xs text-slate-500">Invited as {invite.role}</p>
-                              </div>
+                    <Card className="border-none shadow-sm">
+                      <CardHeader><CardTitle className="text-lg">Recent Activity</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {recentActivity.length > 0 ? recentActivity.map(task => (
+                            <div key={task.id} className="flex space-x-3">
+                              <div className="w-2 h-2 bg-primary rounded-full mt-1.5" />
+                              <p className="text-sm text-slate-600">
+                                <span className="font-semibold text-slate-900">
+                                  {members.find(m => m.uid === (task.completedBy || task.assigneeId))?.displayName || 'A member'}
+                                </span> completed task "{task.title}"
+                              </p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">Pending</Badge>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => cancelInvite(invite.id!)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              <div className="space-y-6">
-                <Card className="border-none shadow-sm bg-primary text-white">
-                  <CardHeader><CardTitle className="text-lg">Team Productivity</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-center py-6">
-                      <h3 className="text-5xl font-bold">92%</h3>
-                      <p className="text-primary-foreground/70 text-sm mt-2">Average Efficiency</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span>Weekly Target</span>
-                        <span>92/100</span>
-                      </div>
-                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                        <div className="h-full bg-white w-[92%]" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-sm">
-                  <CardHeader><CardTitle className="text-lg">Recent Activity</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {recentActivity.length > 0 ? recentActivity.map(task => (
-                        <div key={task.id} className="flex space-x-3">
-                          <div className="w-2 h-2 bg-primary rounded-full mt-1.5" />
-                          <p className="text-sm text-slate-600">
-                            <span className="font-semibold text-slate-900">
-                              {members.find(m => m.uid === (task.completedBy || task.assigneeId))?.displayName || 'A member'}
-                            </span> completed task "{task.title}"
-                          </p>
+                          )) : (
+                            <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
+                          )}
                         </div>
-                      )) : (
-                        <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="data">
+                <TeamDataView teamId={team.id} members={members} />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>

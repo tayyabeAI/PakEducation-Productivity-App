@@ -61,19 +61,44 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'super-admin' && currentUser.role !== 'lead')) return;
     
-    const unsubUsers = onSnapshot(collection(db, 'users'), (s) => {
+    let usersQuery;
+    if (currentUser.role === 'super-admin') {
+      usersQuery = query(collection(db, 'users'));
+    } else if (currentUser.teamIds && currentUser.teamIds.length > 0) {
+      usersQuery = query(collection(db, 'users'), where('teamId', 'in', currentUser.teamIds));
+    } else {
+      usersQuery = query(collection(db, 'users'), where('uid', '==', currentUser.uid));
+    }
+
+    const unsubUsers = onSnapshot(usersQuery, (s) => {
       setRawUsers(s.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
-    const unsubTeams = onSnapshot(collection(db, 'teams'), (s) => {
+    let teamsQuery;
+    if (currentUser.role === 'super-admin') {
+      teamsQuery = query(collection(db, 'teams'));
+    } else {
+      teamsQuery = query(collection(db, 'teams'), where('leadId', '==', currentUser.uid));
+    }
+
+    const unsubTeams = onSnapshot(teamsQuery, (s) => {
       setRawTeams(s.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'teams');
     });
 
-    const unsubTasks = onSnapshot(collection(db, 'tasks'), (s) => {
+    let tasksQuery;
+    if (currentUser.role === 'super-admin') {
+      tasksQuery = query(collection(db, 'tasks'));
+    } else if (currentUser.teamIds && currentUser.teamIds.length > 0) {
+      tasksQuery = query(collection(db, 'tasks'), where('teamId', 'in', currentUser.teamIds));
+    } else {
+      tasksQuery = query(collection(db, 'tasks'), where('assigneeId', '==', currentUser.uid));
+    }
+
+    const unsubTasks = onSnapshot(tasksQuery, (s) => {
       setRawTasks(s.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'tasks');
