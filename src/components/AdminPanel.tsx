@@ -84,14 +84,16 @@ export default function AdminPanel() {
       unsubTeams();
       unsubTasks();
     };
-  }, [currentUser]);
+  }, [currentUser?.uid, currentUser?.role]);
 
   const teams = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'super-admin') return rawTeams;
-    if (currentUser.role === 'admin') return rawTeams.filter(t => t.leadId === currentUser.uid);
+    if (currentUser.role === 'admin' || currentUser.role === 'lead') {
+      return rawTeams.filter(t => t.leadId === currentUser.uid);
+    }
     return rawTeams.filter(t => t.id === currentUser.teamId);
-  }, [rawTeams, currentUser]);
+  }, [rawTeams, currentUser?.uid, currentUser?.role, currentUser?.teamId]);
 
   const users = useMemo(() => {
     if (!currentUser) return [];

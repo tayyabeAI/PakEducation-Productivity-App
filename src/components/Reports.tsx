@@ -25,7 +25,7 @@ export default function Reports() {
     const unsubGoals = onSnapshot(goalsQuery, (s) => setGoals(s.docs.map(d => ({ id: d.id, ...d.data() } as Goal))));
 
     return () => { unsubTasks(); unsubGoals(); };
-  }, [user]);
+  }, [user?.uid]);
 
   const exportToCSV = () => {
     const data = tasks.map(t => ({

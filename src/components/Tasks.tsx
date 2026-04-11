@@ -150,7 +150,7 @@ export default function Tasks() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.teamId, user?.role]);
 
   const handleAddTask = async () => {
     if (!newTask.title || !user) return;

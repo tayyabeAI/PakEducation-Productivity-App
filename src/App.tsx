@@ -37,6 +37,7 @@ import LandingPage from '@/components/LandingPage';
 import Reports from '@/components/Reports';
 import SessionTracker from '@/components/SessionTracker';
 import InvitationsBanner from '@/components/InvitationsBanner';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppContent() {
   const { user, loading, signIn, logout } = useAuth();
@@ -201,10 +202,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <Toaster position="top-right" />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+        <Toaster position="top-right" />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

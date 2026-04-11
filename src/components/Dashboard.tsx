@@ -61,7 +61,7 @@ export default function Dashboard() {
       unsubTasks();
       unsubGoals();
     };
-  }, [user]);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (tasks.length > 0 && recommendations.length === 0 && !loadingAI) {

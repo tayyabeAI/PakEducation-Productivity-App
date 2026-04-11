@@ -63,7 +63,7 @@ export default function Chat() {
     });
 
     return () => unsubscribe();
-  }, [user, chatType, selectedRecipient]);
+  }, [user?.uid, user?.teamId, chatType, selectedRecipient?.uid]);
 
   useEffect(() => {
     if (chatType === 'direct') {
@@ -73,7 +73,7 @@ export default function Chat() {
       };
       fetchUsers();
     }
-  }, [chatType, user]);
+  }, [chatType, user?.uid]);
 
   useEffect(() => {
     if (scrollRef.current) {

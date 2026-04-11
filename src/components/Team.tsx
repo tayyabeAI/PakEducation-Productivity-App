@@ -55,7 +55,7 @@ export default function Team() {
     });
 
     return () => unsub();
-  }, [user, user?.teamIds, user?.teamId]);
+  }, [user?.uid, user?.teamIds, user?.teamId, user?.role]);
 
   useEffect(() => {
     if (!user) {
@@ -117,7 +117,7 @@ export default function Team() {
       setPendingInvites([]);
       setLoading(false);
     }
-  }, [user, user?.teamId]);
+  }, [user?.uid, user?.teamId, user?.role]);
 
   const handleCreateTeam = async () => {
     if (!teamName || !user) return;

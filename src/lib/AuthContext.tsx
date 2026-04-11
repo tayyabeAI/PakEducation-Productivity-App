@@ -92,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: firebaseUser.email === 'masnoezahanat@gmail.com' ? 'super-admin' : 'member',
               createdAt: serverTimestamp(),
               providerId: firebaseUser.providerData[0]?.providerId || 'direct',
-              status: 'active'
+              status: 'active',
+              teamIds: []
             };
             await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
           }
