@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { db, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from '../lib/firebase';
+import { db, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from '../lib/firebase';
 import { useAuth } from '../lib/AuthContext';
-import { Task } from '../types';
+import { Task, UserProfile } from '../types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Textarea } from './ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { 
   Plus, 
   Search, 
@@ -23,7 +24,8 @@ import {
   Copy,
   PauseCircle,
   PlayCircle,
-  CheckSquare
+  CheckSquare,
+  Users
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -104,8 +106,20 @@ export default function Tasks() {
     priority: 'medium' as const,
     frequency: 'once' as const,
     status: 'todo' as const,
-    dueDate: new Date().toISOString().split('T')[0]
+    dueDate: new Date().toISOString().split('T')[0],
+    assigneeIds: [] as string[]
   });
+
+  const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    if (!user?.teamId) return;
+    const q = query(collection(db, 'users'), where('teamId', '==', user.teamId));
+    const unsub = onSnapshot(q, (s) => {
+      setTeamMembers(s.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
+    });
+    return () => unsub();
+  }, [user?.teamId]);
 
   useEffect(() => {
     if (!user) return;
@@ -113,14 +127,24 @@ export default function Tasks() {
     let q;
     if (user.role === 'admin') {
       q = query(collection(db, 'tasks'));
-    } else if (user.role === 'lead' && user.teamId) {
+    } else if (user.teamId) {
       q = query(collection(db, 'tasks'), where('teamId', '==', user.teamId));
     } else {
       q = query(collection(db, 'tasks'), where('assigneeId', '==', user.uid));
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
+      let allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+      
+      // Filter for members: show tasks assigned to them specifically OR tasks where they are in assigneeIds
+      if (user.role === 'member') {
+        allTasks = allTasks.filter(t => 
+          t.assigneeId === user.uid || 
+          (t.assigneeIds && t.assigneeIds.includes(user.uid))
+        );
+      }
+      
+      setTasks(allTasks);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'tasks');
     });
@@ -133,7 +157,8 @@ export default function Tasks() {
     try {
       await addDoc(collection(db, 'tasks'), {
         ...newTask,
-        assigneeId: user.uid,
+        assigneeId: newTask.assigneeIds[0] || user.uid,
+        assigneeIds: newTask.assigneeIds.length > 0 ? newTask.assigneeIds : [user.uid],
         teamId: user.teamId || null,
         timeSpent: 0,
         createdAt: serverTimestamp()
@@ -145,7 +170,8 @@ export default function Tasks() {
         priority: 'medium',
         frequency: 'once',
         status: 'todo',
-        dueDate: new Date().toISOString().split('T')[0]
+        dueDate: new Date().toISOString().split('T')[0],
+        assigneeIds: []
       });
       toast.success('Task added successfully');
     } catch (error) {
@@ -185,12 +211,13 @@ export default function Tasks() {
   };
 
   const handleCompleteTask = async () => {
-    if (!completingTask) return;
+    if (!completingTask || !user) return;
     try {
       await updateDoc(doc(db, 'tasks', completingTask.id), { 
         status: 'completed',
         completionComment: completionComment,
-        completedAt: serverTimestamp()
+        completedAt: serverTimestamp(),
+        completedBy: user.uid
       });
       setIsCommentDialogOpen(false);
       setCompletingTask(null);
@@ -388,6 +415,28 @@ export default function Tasks() {
                     onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
                   />
                 </div>
+                {user?.teamId && (
+                  <div className="grid gap-2">
+                    <Label>Assign To (Multiple allowed)</Label>
+                    <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-slate-50">
+                      {teamMembers.map(member => (
+                        <Badge
+                          key={member.uid}
+                          variant={newTask.assigneeIds.includes(member.uid) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            const ids = newTask.assigneeIds.includes(member.uid)
+                              ? newTask.assigneeIds.filter(id => id !== member.uid)
+                              : [...newTask.assigneeIds, member.uid];
+                            setNewTask({...newTask, assigneeIds: ids});
+                          }}
+                        >
+                          {member.displayName}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button onClick={handleAddTask} className="w-full">Create Task</Button>
@@ -456,6 +505,12 @@ export default function Tasks() {
                     >
                       {task.priority}
                     </Badge>
+                    {task.status === 'completed' && task.completedBy && (
+                      <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Done by {teamMembers.find(m => m.uid === task.completedBy)?.displayName || 'Member'}
+                      </div>
+                    )}
                     {task.status !== 'completed' && task.status !== 'deleted' && <CountdownTimer dueDate={task.dueDate} />}
                   </div>
 

@@ -35,8 +35,14 @@ export default function InvitationsBanner() {
     if (!user) return;
     try {
       // 1. Update user profile with teamId and role
+      const currentTeamIds = user.teamIds || [];
+      const newTeamIds = currentTeamIds.includes(invite.teamId) 
+        ? currentTeamIds 
+        : [...currentTeamIds, invite.teamId];
+
       await updateDoc(doc(db, 'users', user.uid), {
         teamId: invite.teamId,
+        teamIds: newTeamIds,
         role: invite.role
       });
 

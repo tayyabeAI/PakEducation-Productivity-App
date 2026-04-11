@@ -54,13 +54,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(data);
             setLoading(false);
 
-            // Update missing fields for existing users
-            // Only update if not already present and no pending writes to avoid loops
+            // Update missing fields for existing users and lastLogin
             if (!snapshot.metadata.hasPendingWrites) {
               const updates: any = {};
               if (!data.providerId) updates.providerId = firebaseUser.providerData[0]?.providerId || 'direct';
               if (!data.createdAt) updates.createdAt = serverTimestamp();
               if (!data.status) updates.status = 'active';
+              
+              // Force super-admin for specific email
+              if (firebaseUser.email === 'masnoezahanat@gmail.com' && data.role !== 'super-admin') {
+                updates.role = 'super-admin';
+              }
+              
+              const currentTeamIds = data.teamIds || [];
+              if (data.teamId && !currentTeamIds.includes(data.teamId)) {
+                updates.teamIds = [...currentTeamIds, data.teamId];
+              } else if (!data.teamIds) {
+                updates.teamIds = [];
+              }
+              
+              // Update lastLogin if it's been more than 5 minutes or missing
+              const lastLogin = data.lastLogin?.toDate?.() || new Date(0);
+              if (new Date().getTime() - lastLogin.getTime() > 5 * 60 * 1000) {
+                updates.lastLogin = serverTimestamp();
+              }
 
               if (Object.keys(updates).length > 0) {
                 await updateDoc(doc(db, 'users', firebaseUser.uid), updates);
@@ -72,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || 'User',
               photoURL: firebaseUser.photoURL || '',
-              role: firebaseUser.email === 'masnoezahanat@gmail.com' ? 'admin' : 'member',
+              role: firebaseUser.email === 'masnoezahanat@gmail.com' ? 'super-admin' : 'member',
               createdAt: serverTimestamp(),
               providerId: firebaseUser.providerData[0]?.providerId || 'direct',
               status: 'active'

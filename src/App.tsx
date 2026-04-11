@@ -65,7 +65,7 @@ function AppContent() {
     { id: 'reports', label: 'Reports', icon: BarChart3 },
   ];
 
-  if (user.role === 'admin') {
+  if (user.role === 'admin' || user.role === 'super-admin') {
     navItems.push({ id: 'admin', label: 'Admin Panel', icon: ShieldCheck });
   }
 

@@ -22,7 +22,9 @@ import {
   Trash2, 
   ChevronDown,
   Check,
-  Calendar
+  Calendar,
+  PlusCircle,
+  MinusCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from './ui/input';
@@ -35,9 +37,9 @@ import { handleFirestoreError, OperationType } from '../lib/error-handler';
 
 export default function AdminPanel() {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [rawUsers, setRawUsers] = useState<UserProfile[]>([]);
+  const [rawTeams, setRawTeams] = useState<Team[]>([]);
+  const [rawTasks, setRawTasks] = useState<Task[]>([]);
   
   // UI State
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,22 +59,22 @@ export default function AdminPanel() {
   });
 
   useEffect(() => {
-    if (currentUser?.role !== 'admin') return;
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'super-admin' && currentUser.role !== 'lead')) return;
     
     const unsubUsers = onSnapshot(collection(db, 'users'), (s) => {
-      setUsers(s.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
+      setRawUsers(s.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     const unsubTeams = onSnapshot(collection(db, 'teams'), (s) => {
-      setTeams(s.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
+      setRawTeams(s.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'teams');
     });
 
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (s) => {
-      setAllTasks(s.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
+      setRawTasks(s.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'tasks');
     });
@@ -83,6 +85,32 @@ export default function AdminPanel() {
       unsubTasks();
     };
   }, [currentUser]);
+
+  const teams = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'super-admin') return rawTeams;
+    if (currentUser.role === 'admin') return rawTeams.filter(t => t.leadId === currentUser.uid);
+    return rawTeams.filter(t => t.id === currentUser.teamId);
+  }, [rawTeams, currentUser]);
+
+  const users = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'super-admin') return rawUsers;
+    
+    const visibleTeamIds = teams.map(t => t.id);
+    if (currentUser.role === 'admin') {
+      return rawUsers.filter(u => u.teamId && visibleTeamIds.includes(u.teamId));
+    }
+    return rawUsers.filter(u => u.teamId === currentUser.teamId);
+  }, [rawUsers, currentUser, teams]);
+
+  const allTasks = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'super-admin') return rawTasks;
+    
+    const visibleTeamIds = teams.map(t => t.id);
+    return rawTasks.filter(t => t.teamId && visibleTeamIds.includes(t.teamId));
+  }, [rawTasks, currentUser, teams]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -144,6 +172,15 @@ export default function AdminPanel() {
     }
   };
 
+  const toggleMultiTeamPrivilege = async (uid: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { canCreateMultipleTeams: !currentStatus });
+      toast.success(`Multi-team privilege ${!currentStatus ? 'granted' : 'revoked'}`);
+    } catch (error) {
+      toast.error('Failed to update privilege');
+    }
+  };
+
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -176,7 +213,7 @@ export default function AdminPanel() {
     }
   };
 
-  if (currentUser?.role !== 'admin') {
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'super-admin' && currentUser?.role !== 'lead') {
     return <div className="p-8 text-center">Access Denied</div>;
   }
 
@@ -237,6 +274,7 @@ export default function AdminPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="super-admin">Super Admin</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="lead">Lead</SelectItem>
                 <SelectItem value="member">Member</SelectItem>
@@ -425,9 +463,24 @@ export default function AdminPanel() {
                             <PopoverContent className="w-48">
                               <div className="space-y-1">
                                 <p className="text-xs font-bold text-slate-500 px-2 py-1 uppercase">Change Role</p>
+                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'super-admin')}>Super Admin</Button>
                                 <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'admin')}>Admin</Button>
                                 <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'lead')}>Lead</Button>
                                 <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'member')}>Member</Button>
+                                <Separator className="my-1" />
+                                <p className="text-xs font-bold text-slate-500 px-2 py-1 uppercase">Privileges</p>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className={`w-full justify-start ${user.canCreateMultipleTeams ? 'text-red-600' : 'text-primary'}`}
+                                  onClick={() => toggleMultiTeamPrivilege(user.uid, !!user.canCreateMultipleTeams)}
+                                >
+                                  {user.canCreateMultipleTeams ? (
+                                    <><MinusCircle className="w-4 h-4 mr-2" /> Revoke Multi-Team</>
+                                  ) : (
+                                    <><PlusCircle className="w-4 h-4 mr-2" /> Grant Multi-Team</>
+                                  )}
+                                </Button>
                                 <Separator className="my-1" />
                                 <p className="text-xs font-bold text-slate-500 px-2 py-1 uppercase">Account Status</p>
                                 {user.status !== 'active' && (

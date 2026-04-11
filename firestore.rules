@@ -7,13 +7,13 @@ service cloud.firestore {
     // ===============================================================
     //
     // Collection: users
-    // Fields: uid, email, displayName, photoURL, role, teamId, createdAt
+    // Fields: uid, email, displayName, photoURL, role, teamId, createdAt, lastLogin, canCreateMultipleTeams
     //
     // Collection: teams
     // Fields: id, name, leadId, createdAt
     //
     // Collection: tasks
-    // Fields: id, title, description, status, priority, dueDate, assigneeId, teamId, timeSpent, createdAt
+    // Fields: id, title, description, status, priority, dueDate, assigneeId, assigneeIds, completedBy, completedAt, teamId, timeSpent, createdAt
     //
     // Collection: goals
     // Fields: id, title, description, type, targetDate, progress, userId, teamId, createdAt
@@ -43,7 +43,16 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && 
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super-admin')) ||
+         (request.auth.token.email == "masnoezahanat@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super-admin') ||
          (request.auth.token.email == "masnoezahanat@gmail.com" && request.auth.token.email_verified == true));
     }
     
@@ -79,7 +88,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role != 'admin' || isAdmin());
-      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow update: if (isOwner(userId) && 
+                       request.resource.data.role == resource.data.role && 
+                       (!('canCreateMultipleTeams' in request.resource.data) || request.resource.data.canCreateMultipleTeams == resource.data.canCreateMultipleTeams) &&
+                       (!('teamIds' in request.resource.data) || request.resource.data.teamIds is list)) || 
+                       isAdmin();
     }
 
     match /sessions/{sessionId} {
@@ -88,14 +101,18 @@ service cloud.firestore {
     }
 
     match /teams/{teamId} {
-      allow read: if isAuthenticated();
+      allow read: if isSuperAdmin() || 
+                    (isAuthenticated() && resource.data.leadId == request.auth.uid) ||
+                    (isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds);
       allow create: if isAuthenticated();
-      allow update: if isTeamLead(teamId) || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isTeamLead(teamId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
+      allow read: if isSuperAdmin() || 
+                    (isAuthenticated() && (resource.data.teamId == null || 
+                     resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds));
       allow create: if isAuthenticated() && isValidTask(request.resource.data);
       allow update: if isAuthenticated() && isValidTask(request.resource.data);
       allow delete: if isAuthenticated();

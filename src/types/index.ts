@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'lead' | 'member';
+export type UserRole = 'super-admin' | 'admin' | 'lead' | 'member';
 
 export interface UserProfile {
   uid: string;
@@ -7,7 +7,10 @@ export interface UserProfile {
   photoURL: string;
   role: UserRole;
   teamId?: string;
+  teamIds?: string[];
   createdAt: any;
+  lastLogin?: any;
+  canCreateMultipleTeams?: boolean;
   providerId?: string;
   status: 'active' | 'suspended' | 'deleted';
 }
@@ -28,6 +31,9 @@ export interface Task {
   frequency: 'once' | 'daily' | 'weekly' | 'custom';
   dueDate: string;
   assigneeId: string;
+  assigneeIds?: string[];
+  completedBy?: string;
+  completedAt?: any;
   teamId?: string;
   timeSpent: number; // in seconds
   createdAt: any;

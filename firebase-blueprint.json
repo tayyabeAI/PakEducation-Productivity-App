@@ -9,9 +9,12 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "lead", "member"] },
+        "role": { "type": "string", "enum": ["super-admin", "admin", "lead", "member"] },
         "teamId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "teamIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "canCreateMultipleTeams": { "type": "boolean" }
       },
       "required": ["uid", "email", "role"]
     },
@@ -39,6 +42,9 @@
         "priority": { "type": "string", "enum": ["low", "medium", "high"] },
         "dueDate": { "type": "string", "format": "date-time" },
         "assigneeId": { "type": "string" },
+        "assigneeIds": { "type": "array", "items": { "type": "string" } },
+        "completedBy": { "type": "string" },
+        "completedAt": { "type": "string", "format": "date-time" },
         "teamId": { "type": "string" },
         "timeSpent": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
