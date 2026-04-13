@@ -45,7 +45,11 @@ export default class ErrorBoundary extends Component<Props, State> {
         if (this.state.error?.message) {
           const parsed = JSON.parse(this.state.error.message);
           if (parsed.error && parsed.operationType) {
-            errorMessage = `Database Error: ${parsed.error} during ${parsed.operationType} on ${parsed.path || 'unknown path'}`;
+            if (parsed.error.includes('Quota exceeded') || parsed.error.includes('resource-exhausted')) {
+              errorMessage = "Firestore Quota Exceeded: You have reached the daily free limit for database operations. This limit will automatically reset tomorrow. Please try again then.";
+            } else {
+              errorMessage = `Database Error: ${parsed.error} during ${parsed.operationType} on ${parsed.path || 'unknown path'}`;
+            }
             isFirestoreError = true;
           }
         }

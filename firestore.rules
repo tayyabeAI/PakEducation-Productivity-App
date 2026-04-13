@@ -65,7 +65,9 @@ service cloud.firestore {
     function isTeamMember(teamId) {
       return isAuthenticated() && teamId != null && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId == teamId;
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamId == teamId ||
+              (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds is list && 
+               teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds));
     }
 
     function isValidUser(data) {
@@ -79,6 +81,12 @@ service cloud.firestore {
              data.title is string && data.title.size() < 200 &&
              data.status in ['todo', 'in-progress', 'completed', 'deleted'] &&
              data.priority in ['low', 'medium', 'high'];
+    }
+
+    function isValidReportTemplate(data) {
+      return data.keys().hasAll(['name', 'teamId', 'createdBy']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.teamId is string && data.createdBy is string;
     }
 
     // ===============================================================
@@ -160,24 +168,43 @@ service cloud.firestore {
     match /team_data/{recordId} {
       allow read: if isSuperAdmin() || 
                     (isAuthenticated() && (
-                      (resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds && (isTeamLead(resource.data.teamId) || isAdmin())) ||
+                      isTeamMember(resource.data.teamId) && (isTeamLead(resource.data.teamId) || isAdmin()) ||
                       (resource.data.assignedUserId == request.auth.uid) ||
-                      (resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds && (!('assignedUserId' in resource.data) || resource.data.assignedUserId == null))
+                      (request.auth.uid in resource.data.get('assignedUserIds', [])) ||
+                      (request.auth.uid in resource.data.get('editorIds', [])) ||
+                      (request.auth.uid in resource.data.get('viewerIds', [])) ||
+                      (isTeamMember(resource.data.teamId) && (!('assignedUserId' in resource.data) || resource.data.assignedUserId == null))
                     ));
       allow create: if isAuthenticated() && (isSuperAdmin() || isTeamLead(request.resource.data.teamId) || isAdmin());
       allow update: if isSuperAdmin() || 
                     (isAuthenticated() && (
                       isTeamLead(resource.data.teamId) || 
                       isAdmin() ||
-                      resource.data.assignedUserId == request.auth.uid
+                      resource.data.assignedUserId == request.auth.uid ||
+                      (request.auth.uid in resource.data.get('assignedUserIds', [])) ||
+                      (request.auth.uid in resource.data.get('editorIds', []))
                     ));
       allow delete: if isSuperAdmin() || isTeamLead(resource.data.teamId) || isAdmin();
     }
     
     match /activity_logs/{logId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.teamId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.teamIds);
+      allow read: if isSuperAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
       allow create: if isAuthenticated();
       allow update, delete: if false;
+    }
+
+    match /report_templates/{templateId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
+      allow create: if isAuthenticated() && isValidReportTemplate(request.resource.data) && (isTeamLead(request.resource.data.teamId) || isAdmin());
+      allow update: if isAuthenticated() && isValidReportTemplate(request.resource.data) && (isTeamLead(resource.data.teamId) || isAdmin());
+      allow delete: if isAuthenticated() && (isTeamLead(resource.data.teamId) || isAdmin());
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     match /test/connection {

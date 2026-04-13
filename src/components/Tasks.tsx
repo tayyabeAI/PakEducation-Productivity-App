@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from '../lib/firebase';
 import { useAuth } from '../lib/AuthContext';
 import { Task, UserProfile } from '../types';
@@ -99,6 +100,74 @@ export default function Tasks() {
   const [completingTask, setCompletingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [completionComment, setCompletionComment] = useState('');
+  const [now, setNow] = useState(Date.now());
+
+  const sendNotification = async (userId: string, title: string, message: string, type: 'task_assigned' | 'task_updated') => {
+    try {
+      await addDoc(collection(db, 'notifications'), {
+        userId,
+        title,
+        message,
+        type,
+        read: false,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const startTimer = async (taskId: string) => {
+    if (!user) return;
+    
+    // Check if any other task has a running timer for this user
+    const runningTask = tasks.find(t => t.timerStartedBy === user.uid);
+    if (runningTask) {
+      toast.error(`A timer is already running for "${runningTask.title}". Stop it first.`);
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'tasks', taskId), {
+        timerStartedAt: serverTimestamp(),
+        timerStartedBy: user.uid
+      });
+      toast.info('Timer started');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'tasks');
+    }
+  };
+
+  const stopTimer = async (task: Task) => {
+    if (!task.timerStartedAt || !user) return;
+    
+    const startTime = task.timerStartedAt.toDate ? task.timerStartedAt.toDate().getTime() : task.timerStartedAt;
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    const newTimeSpent = (task.timeSpent || 0) + Math.max(0, duration);
+
+    try {
+      await updateDoc(doc(db, 'tasks', task.id), {
+        timeSpent: newTimeSpent,
+        timerStartedAt: null,
+        timerStartedBy: null
+      });
+      toast.success(`Timer stopped. Added ${formatDuration(duration)} to task.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'tasks');
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h > 0 ? h + 'h ' : ''}${m}m ${s}s`;
+  };
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -162,7 +231,7 @@ export default function Tasks() {
   const handleAddTask = async () => {
     if (!newTask.title || !user) return;
     try {
-      await addDoc(collection(db, 'tasks'), {
+      const taskRef = await addDoc(collection(db, 'tasks'), {
         ...newTask,
         assigneeId: newTask.assigneeIds[0] || user.uid,
         assigneeIds: newTask.assigneeIds.length > 0 ? newTask.assigneeIds : [user.uid],
@@ -170,6 +239,20 @@ export default function Tasks() {
         timeSpent: 0,
         createdAt: serverTimestamp()
       });
+
+      // Send notifications to assignees
+      const assignees = newTask.assigneeIds.length > 0 ? newTask.assigneeIds : [user.uid];
+      for (const assigneeId of assignees) {
+        if (assigneeId !== user.uid) {
+          await sendNotification(
+            assigneeId,
+            'New Task Assigned',
+            `You have been assigned a new task: ${newTask.title}`,
+            'task_assigned'
+          );
+        }
+      }
+
       setIsAddDialogOpen(false);
       setNewTask({
         title: '',
@@ -226,6 +309,19 @@ export default function Tasks() {
         completedAt: serverTimestamp(),
         completedBy: user.uid
       });
+
+      // Notify team lead or admin if needed, or just log it
+      // For now, let's notify the original creator if they are different
+      const originalTask = tasks.find(t => t.id === completingTask.id);
+      if (originalTask && originalTask.assigneeId !== user.uid) {
+        await sendNotification(
+          originalTask.assigneeId,
+          'Task Completed',
+          `Task "${completingTask.title}" has been marked as completed by ${user.displayName}`,
+          'task_updated'
+        );
+      }
+
       setIsCommentDialogOpen(false);
       setCompletingTask(null);
       setCompletionComment('');
@@ -305,6 +401,21 @@ export default function Tasks() {
   const isToday = (dateStr: string) => {
     const today = new Date().toISOString().split('T')[0];
     return dateStr === today;
+  };
+
+  const isDueSoon = (dateStr: string) => {
+    const today = new Date();
+    const due = new Date(dateStr);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 3;
+  };
+
+  const getDueStatus = (task: Task) => {
+    if (task.status === 'completed') return 'normal';
+    if (isPast(task.dueDate)) return 'overdue';
+    if (isDueSoon(task.dueDate)) return 'soon';
+    return 'normal';
   };
 
   const filteredTasks = useMemo(() => {
@@ -454,120 +565,198 @@ export default function Tasks() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredTasks.map((task) => (
-          <Card 
-            key={task.id} 
-            className={`border-none shadow-sm hover:shadow-md transition-all group ${task.isInactive ? 'opacity-60 bg-slate-50' : ''}`}
-          >
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10 hover:text-primary shrink-0"
-                  onClick={() => toggleTaskStatus(task)}
-                >
-                  {task.status === 'completed' ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-500" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-slate-300" />
-                  )}
-                </Button>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 
-                      className={`font-semibold truncate cursor-pointer hover:text-primary transition-colors ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-900'}`}
-                      onClick={() => { setViewingTask(task); setIsDetailsDialogOpen(true); }}
+        <AnimatePresence mode="popLayout">
+          {filteredTasks.map((task) => (
+            <motion.div
+              key={task.id}
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ 
+                opacity: task.status === 'completed' ? 0.7 : 1,
+                y: 0,
+                scale: 1
+              }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card 
+                className={`border-none shadow-sm hover:shadow-md transition-all group relative overflow-hidden ${
+                  task.isInactive ? 'opacity-60 bg-slate-50' : ''
+                } ${
+                  getDueStatus(task) === 'overdue' ? 'bg-red-50/30' : 
+                  getDueStatus(task) === 'soon' ? 'bg-amber-50/30' : ''
+                }`}
+              >
+                {/* Status Indicator Bar */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                  getDueStatus(task) === 'overdue' ? 'bg-red-500' : 
+                  getDueStatus(task) === 'soon' ? 'bg-amber-500' : 
+                  'bg-transparent'
+                }`} />
+                
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-4 flex-1 min-w-0">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full hover:bg-primary/10 hover:text-primary shrink-0"
+                      onClick={() => toggleTaskStatus(task)}
                     >
-                      {task.title}
-                    </h4>
-                    {task.isInactive && <Badge variant="outline" className="text-[10px] h-4">Inactive</Badge>}
-                    {task.frequency === 'daily' && isToday(task.dueDate) && (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] h-4">Today</Badge>
-                    )}
-                    {task.frequency === 'daily' && isPast(task.dueDate) && (
-                      <Badge variant="outline" className="text-slate-400 text-[10px] h-4">Old</Badge>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3 mt-1">
-                    <div className="flex items-center text-[10px] text-slate-500">
-                      <CalendarIcon className="h-3 w-3 mr-1" />
-                      {task.dueDate}
-                    </div>
-                    <div className="flex items-center text-[10px] text-slate-500">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {(task.timeSpent / 3600).toFixed(1)}h
-                    </div>
-                    <Badge variant="outline" className="text-[10px] h-4 capitalize">
-                      {task.frequency}
-                    </Badge>
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-[10px] uppercase px-2 py-0 h-4 ${
-                        task.priority === 'high' ? 'bg-red-50 text-red-600' : 
-                        task.priority === 'medium' ? 'bg-orange-50 text-orange-600' : 
-                        'bg-blue-50 text-blue-600'
-                      }`}
-                    >
-                      {task.priority}
-                    </Badge>
-                    {task.status === 'completed' && task.completedBy && (
-                      <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Done by {teamMembers.find(m => m.uid === task.completedBy)?.displayName || 'Member'}
-                      </div>
-                    )}
-                    {task.status !== 'completed' && task.status !== 'deleted' && <CountdownTimer dueDate={task.dueDate} />}
-                  </div>
-
-                  {task.deleteRequested && (
-                    <div className="mt-2 flex items-center text-[10px] text-red-600 bg-red-50 p-1.5 rounded-md">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Pending to delete by Admin or Team Leader
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-1 ml-4">
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                      <MoreVertical className="h-4 w-4" />
+                      {task.status === 'completed' ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-slate-300" />
+                      )}
                     </Button>
-                  } />
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={() => { setViewingTask(task); setIsDetailsDialogOpen(true); }}>
-                      <Eye className="mr-2 h-4 w-4" /> View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setEditingTask(task); setIsEditDialogOpen(true); }}>
-                      <Plus className="mr-2 h-4 w-4" /> Edit Task
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDuplicateTask(task)}>
-                      <Copy className="mr-2 h-4 w-4" /> Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleToggleInactive(task)}>
-                      {task.isInactive ? <PlayCircle className="mr-2 h-4 w-4" /> : <PauseCircle className="mr-2 h-4 w-4" />}
-                      {task.isInactive ? 'Activate' : 'Set Inactive'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    
-                    {task.deleteRequested && (user?.role === 'admin' || user?.role === 'lead') ? (
-                      <DropdownMenuItem className="text-red-600" onClick={() => handleFinalDelete(task)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Confirm Delete
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteRequest(task)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete Task
-                      </DropdownMenuItem>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="relative inline-block max-w-full">
+                          <h4 
+                            className={`font-semibold truncate cursor-pointer hover:text-primary transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-900'}`}
+                            onClick={() => { setViewingTask(task); setIsDetailsDialogOpen(true); }}
+                          >
+                            {task.title}
+                          </h4>
+                          {task.status === 'completed' && (
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: '100%' }}
+                              className="absolute top-[55%] left-0 h-[1.5px] bg-slate-400"
+                              transition={{ duration: 0.3, ease: "easeInOut" }}
+                            />
+                          )}
+                        </div>
+                        {task.isInactive && <Badge variant="outline" className="text-[10px] h-4">Inactive</Badge>}
+                        {task.status !== 'completed' && isPast(task.dueDate) && (
+                          <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] h-4 flex items-center gap-1">
+                            <AlertCircle className="h-2 w-2" /> Overdue
+                          </Badge>
+                        )}
+                        {task.status !== 'completed' && !isPast(task.dueDate) && isDueSoon(task.dueDate) && (
+                          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] h-4">Due Soon</Badge>
+                        )}
+                        {task.frequency === 'daily' && isToday(task.dueDate) && (
+                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] h-4">Today</Badge>
+                        )}
+                        {task.frequency === 'daily' && isPast(task.dueDate) && (
+                          <Badge variant="outline" className="text-slate-400 text-[10px] h-4">Old</Badge>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-3 mt-1">
+                        <div className="flex items-center text-[10px] text-slate-500">
+                          <CalendarIcon className="h-3 w-3 mr-1" />
+                          {task.dueDate}
+                        </div>
+                        <div className="flex items-center text-[10px] text-slate-500">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {(task.timeSpent / 3600).toFixed(1)}h
+                        </div>
+                        {task.timerStartedAt && (
+                          <div className="flex items-center text-[10px] font-bold text-primary animate-pulse">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Active: {(() => {
+                              const start = task.timerStartedAt.toDate ? task.timerStartedAt.toDate().getTime() : task.timerStartedAt;
+                              const elapsed = Math.floor((now - start) / 1000);
+                              return formatDuration(elapsed);
+                            })()}
+                          </div>
+                        )}
+                        <Badge variant="outline" className="text-[10px] h-4 capitalize">
+                          {task.frequency}
+                        </Badge>
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[10px] uppercase px-2 py-0 h-4 ${
+                            task.priority === 'high' ? 'bg-red-50 text-red-600' : 
+                            task.priority === 'medium' ? 'bg-orange-50 text-orange-600' : 
+                            'bg-blue-50 text-blue-600'
+                          }`}
+                        >
+                          {task.priority}
+                        </Badge>
+                        {task.status === 'completed' && task.completedBy && (
+                          <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Done by {teamMembers.find(m => m.uid === task.completedBy)?.displayName || 'Member'}
+                          </div>
+                        )}
+                        {task.status !== 'completed' && task.status !== 'deleted' && <CountdownTimer dueDate={task.dueDate} />}
+                      </div>
+
+                      {task.deleteRequested && (
+                        <div className="mt-2 flex items-center text-[10px] text-red-600 bg-red-50 p-1.5 rounded-md">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Pending to delete by Admin or Team Leader
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1 ml-4">
+                    {task.status !== 'completed' && (
+                      task.timerStartedAt && task.timerStartedBy === user?.uid ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-red-500 hover:bg-red-50"
+                          onClick={() => stopTimer(task)}
+                          title="Stop Timer"
+                        >
+                          <PauseCircle className="h-5 w-5" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-green-500 hover:bg-green-50"
+                          onClick={() => startTimer(task.id)}
+                          title="Start Timer"
+                          disabled={!!tasks.find(t => t.timerStartedBy === user?.uid)}
+                        >
+                          <PlayCircle className="h-5 w-5" />
+                        </Button>
+                      )
                     )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger render={
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      } />
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => { setViewingTask(task); setIsDetailsDialogOpen(true); }}>
+                          <Eye className="mr-2 h-4 w-4" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setEditingTask(task); setIsEditDialogOpen(true); }}>
+                          <Plus className="mr-2 h-4 w-4" /> Edit Task
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicateTask(task)}>
+                          <Copy className="mr-2 h-4 w-4" /> Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleInactive(task)}>
+                          {task.isInactive ? <PlayCircle className="mr-2 h-4 w-4" /> : <PauseCircle className="mr-2 h-4 w-4" />}
+                          {task.isInactive ? 'Activate' : 'Set Inactive'}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        
+                        {task.deleteRequested && (user?.role === 'admin' || user?.role === 'lead') ? (
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleFinalDelete(task)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Confirm Delete
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteRequest(task)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Task
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
         {filteredTasks.length === 0 && (
           <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">

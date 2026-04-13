@@ -38,6 +38,7 @@ import Reports from '@/components/Reports';
 import SessionTracker from '@/components/SessionTracker';
 import InvitationsBanner from '@/components/InvitationsBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import NotificationListener from '@/components/NotificationListener';
 
 function AppContent() {
   const { user, loading, signIn, logout } = useAuth();
@@ -74,6 +75,7 @@ function AppContent() {
     <div className="h-screen flex bg-slate-50 overflow-hidden">
       <SessionTracker />
       <InvitationsBanner />
+      <NotificationListener />
       {/* Sidebar */}
       <motion.aside 
         initial={false}

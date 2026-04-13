@@ -86,7 +86,7 @@ export default function Team() {
       });
 
       let unsubInvites = () => {};
-      if (user.role === 'lead' || user.role === 'admin') {
+      if (user.role === 'lead' || user.role === 'admin' || user.role === 'super-admin') {
         const invitesQuery = query(
           collection(db, 'invitations'), 
           where('teamId', '==', user.teamId),
@@ -210,7 +210,7 @@ export default function Team() {
       <div className="lg:col-span-1 space-y-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-slate-900">My Teams</h3>
-          {(user.canCreateMultipleTeams || user.role === 'admin') && (
+          {(user.canCreateMultipleTeams || user.role === 'admin' || user.role === 'super-admin') && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger render={
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
@@ -280,7 +280,7 @@ export default function Team() {
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                {(user.role === 'lead' || user.role === 'admin') && (
+                {(user.role === 'lead' || user.role === 'admin' || user.role === 'super-admin') && (
                   <Button onClick={() => setIsInviteDialogOpen(true)} variant="outline" className="rounded-full">
                     <UserPlus className="w-4 h-4 mr-2" />
                     Invite

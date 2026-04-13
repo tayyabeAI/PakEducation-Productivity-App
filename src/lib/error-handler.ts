@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+import { toast } from 'sonner';
 
 export enum OperationType {
   CREATE = 'create',
@@ -29,8 +30,17 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  if (errorMessage.includes('Quota exceeded') || errorMessage.includes('resource-exhausted')) {
+    toast.error('Firestore Quota Exceeded', {
+      description: 'You have reached the daily free limit for database operations. This will reset tomorrow. See https://firebase.google.com/pricing for details.',
+      duration: 10000,
+    });
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,

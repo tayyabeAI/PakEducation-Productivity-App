@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Upload, FileSpreadsheet, Search, Filter, Edit2, Save, X, Trash2, Plus, Download, Printer, ChevronDown, ChevronRight, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { Upload, FileSpreadsheet, Search, Filter, Edit2, Save, X, Trash2, Plus, Download, Printer, ChevronDown, ChevronRight, RefreshCw, LayoutDashboard, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -17,6 +17,7 @@ import { handleFirestoreError, OperationType } from '../lib/error-handler';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from './ui/dialog';
 import { deleteDoc, writeBatch } from 'firebase/firestore';
 import AdvancedReporting from './AdvancedReporting';
+import AdvancedGridView from './AdvancedGridView';
 
 interface TeamDataViewProps {
   teamId: string;
@@ -46,6 +47,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
 
   // Reporting State
   const [isReportingOpen, setIsReportingOpen] = useState(false);
+  const [isAdvancedGridOpen, setIsAdvancedGridOpen] = useState(false);
 
   // Edit State
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -233,8 +235,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
       // Refresh data
       fetchInitialRecords();
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload records. The file might be too large or there was a connection issue.');
+      handleFirestoreError(error, OperationType.WRITE, 'team_data');
     } finally {
       setUploading(false);
     }
@@ -258,7 +259,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
           toast.success(`Sheet "${sheetName}" deleted`);
           setConfirmDialog(prev => ({ ...prev, open: false }));
         } catch (error) {
-          toast.error('Failed to delete sheet');
+          handleFirestoreError(error, OperationType.DELETE, 'team_data');
         }
       }
     });
@@ -284,7 +285,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
       });
       toast.success('Row added');
     } catch (error) {
-      toast.error('Failed to add row');
+      handleFirestoreError(error, OperationType.CREATE, 'team_data');
     }
   };
 
@@ -301,7 +302,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
           toast.success('Row deleted');
           setConfirmDialog(prev => ({ ...prev, open: false }));
         } catch (error) {
-          toast.error('Failed to delete row');
+          handleFirestoreError(error, OperationType.DELETE, 'team_data');
         }
       }
     });
@@ -331,7 +332,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
           toast.success(`Column "${columnName}" added`);
           setPromptDialog(prev => ({ ...prev, open: false }));
         } catch (error) {
-          toast.error('Failed to add column');
+          handleFirestoreError(error, OperationType.UPDATE, 'team_data');
         }
       }
     });
@@ -361,7 +362,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
           toast.success(`Column "${columnName}" deleted`);
           setConfirmDialog(prev => ({ ...prev, open: false }));
         } catch (error) {
-          toast.error('Failed to delete column');
+          handleFirestoreError(error, OperationType.UPDATE, 'team_data');
         }
       }
     });
@@ -406,8 +407,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
           fetchInitialRecords();
           setConfirmDialog(prev => ({ ...prev, open: false }));
         } catch (error) {
-          console.error('Truncate error:', error);
-          toast.error('Failed to truncate data');
+          handleFirestoreError(error, OperationType.DELETE, 'team_data');
         } finally {
           setLoading(false);
         }
@@ -493,7 +493,7 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
       toast.success('Record updated');
       setEditingRecordId(null);
     } catch (error) {
-      toast.error('Failed to update record');
+      handleFirestoreError(error, OperationType.UPDATE, 'team_data');
     }
   };
 
@@ -538,6 +538,23 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
                   members={members}
                   allHeaders={allHeaders}
                   allSheets={allSheets}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAdvancedGridOpen} onOpenChange={setIsAdvancedGridOpen}>
+            <DialogTrigger render={
+              <Button variant="outline" size="sm" className="bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100">
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                Advanced Grid
+              </Button>
+            } />
+            <DialogContent className="sm:max-w-[1400px] w-[98vw] h-[95vh] p-0 overflow-hidden flex flex-col border-none">
+              <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                <AdvancedGridView 
+                  teamId={teamId}
+                  members={members}
                 />
               </div>
             </DialogContent>

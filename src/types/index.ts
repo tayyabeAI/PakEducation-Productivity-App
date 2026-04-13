@@ -36,6 +36,8 @@ export interface Task {
   completedAt?: any;
   teamId?: string;
   timeSpent: number; // in seconds
+  timerStartedAt?: any;
+  timerStartedBy?: string;
   createdAt: any;
   isInactive?: boolean;
   deleteRequested?: boolean;
@@ -102,6 +104,9 @@ export interface TeamDataRecord {
   batchId: string;
   sheetName: string;
   assignedUserId?: string | null;
+  assignedUserIds?: string[]; // Multiple assignees
+  editorIds?: string[]; // Users with edit access
+  viewerIds?: string[]; // Users with view access
   dataFields: Record<string, any>;
   status: string;
   createdBy: string;
@@ -118,4 +123,39 @@ export interface ActivityLog {
   userId: string;
   timestamp: any;
   recordId?: string;
+}
+
+export interface Notification {
+  id?: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'task_assigned' | 'task_updated' | 'system';
+  read: boolean;
+  createdAt: any;
+  link?: string;
+}
+
+export interface ReportTemplate {
+  id?: string;
+  name: string;
+  teamId: string;
+  createdBy: string;
+  createdAt: any;
+  filters: FilterGroup;
+  columns: string[]; // Visible columns
+}
+
+export interface FilterGroup {
+  id?: string;
+  logic: 'AND' | 'OR';
+  conditions: (FilterCondition | FilterGroup)[];
+}
+
+export interface FilterCondition {
+  id?: string;
+  field: string;
+  operator: 'equals' | 'not-equals' | 'greater-than' | 'less-than' | 'contains' | 'between';
+  value: any;
+  valueEnd?: any; // For between
 }

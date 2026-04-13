@@ -107,6 +107,67 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "message"]
+    },
+    "TeamDataRecord": {
+      "title": "Team Data Record",
+      "description": "A single record of team data",
+      "type": "object",
+      "properties": {
+        "teamId": { "type": "string" },
+        "batchId": { "type": "string" },
+        "sheetName": { "type": "string" },
+        "assignedUserId": { "type": "string" },
+        "assignedUserIds": { "type": "array", "items": { "type": "string" } },
+        "editorIds": { "type": "array", "items": { "type": "string" } },
+        "viewerIds": { "type": "array", "items": { "type": "string" } },
+        "dataFields": { "type": "object" },
+        "status": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamId", "sheetName", "status"]
+    },
+    "ActivityLog": {
+      "title": "Activity Log",
+      "description": "Log of team activities",
+      "type": "object",
+      "properties": {
+        "teamId": { "type": "string" },
+        "action": { "type": "string", "enum": ["upload", "assignment", "update"] },
+        "details": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamId", "action", "userId"]
+    },
+    "ReportTemplate": {
+      "title": "Report Template",
+      "description": "Saved filter configuration for reports",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "teamId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "filters": { "type": "object" },
+        "columns": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["name", "teamId", "createdBy"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System or task notification for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["task_assigned", "task_updated", "system"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "link": { "type": "string" }
+      },
+      "required": ["userId", "title", "message", "type", "read"]
     }
   },
   "firestore": {
@@ -137,6 +198,22 @@
     "/feedback/{feedbackId}": {
       "schema": "Feedback",
       "description": "User feedback"
+    },
+    "/team_data/{recordId}": {
+      "schema": "TeamDataRecord",
+      "description": "Team data records"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Activity logs"
+    },
+    "/report_templates/{templateId}": {
+      "schema": "ReportTemplate",
+      "description": "Saved report templates"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
     }
   }
 }
