@@ -24,13 +24,14 @@ import {
   Check,
   Calendar,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from './ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
@@ -48,6 +49,7 @@ export default function AdminPanel() {
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [monthFilter, setMonthFilter] = useState<string>('all');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ uid: string, role: string, displayName: string } | null>(null);
   const [visibleColumns, setVisibleColumns] = useState({
     user: true,
     role: true,
@@ -194,6 +196,7 @@ export default function AdminPanel() {
     try {
       await updateDoc(doc(db, 'users', uid), { role: newRole });
       toast.success('User role updated');
+      setRoleChangeConfirm(null);
     } catch (error) {
       toast.error('Failed to update role');
     }
@@ -490,10 +493,10 @@ export default function AdminPanel() {
                             <PopoverContent className="w-48">
                               <div className="space-y-1">
                                 <p className="text-xs font-bold text-slate-500 px-2 py-1 uppercase">Change Role</p>
-                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'super-admin')}>Super Admin</Button>
-                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'admin')}>Admin</Button>
-                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'lead')}>Lead</Button>
-                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => updateUserRole(user.uid, 'member')}>Member</Button>
+                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRoleChangeConfirm({ uid: user.uid, role: 'super-admin', displayName: user.displayName })}>Super Admin</Button>
+                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRoleChangeConfirm({ uid: user.uid, role: 'admin', displayName: user.displayName })}>Admin</Button>
+                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRoleChangeConfirm({ uid: user.uid, role: 'lead', displayName: user.displayName })}>Lead</Button>
+                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setRoleChangeConfirm({ uid: user.uid, role: 'member', displayName: user.displayName })}>Member</Button>
                                 <Separator className="my-1" />
                                 <p className="text-xs font-bold text-slate-500 px-2 py-1 uppercase">Privileges</p>
                                 <Button 
@@ -547,6 +550,33 @@ export default function AdminPanel() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!roleChangeConfirm} onOpenChange={(open) => !open && setRoleChangeConfirm(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="w-5 h-5" />
+              Confirm Role Change
+            </DialogTitle>
+            <DialogDescription className="py-2">
+              Are you sure you want to change the role of <strong>{roleChangeConfirm?.displayName}</strong> to <strong>{roleChangeConfirm?.role}</strong>?
+              This will change their permissions across the platform.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setRoleChangeConfirm(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              className="bg-orange-600 hover:bg-orange-700"
+              onClick={() => roleChangeConfirm && updateUserRole(roleChangeConfirm.uid, roleChangeConfirm.role)}
+            >
+              Confirm Change
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

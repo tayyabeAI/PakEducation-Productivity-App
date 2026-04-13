@@ -279,6 +279,20 @@ export default function Tasks() {
         frequency: editingTask.frequency,
         dueDate: editingTask.dueDate
       });
+
+      // Notify assignees about the update
+      const assignees = editingTask.assigneeIds || [editingTask.assigneeId];
+      for (const assigneeId of assignees) {
+        if (assigneeId !== user?.uid) {
+          await sendNotification(
+            assigneeId,
+            'Task Updated',
+            `Task "${editingTask.title}" has been updated by ${user?.displayName}`,
+            'task_updated'
+          );
+        }
+      }
+
       setIsEditDialogOpen(false);
       setEditingTask(null);
       toast.success('Task updated');

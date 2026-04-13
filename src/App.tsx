@@ -39,6 +39,7 @@ import SessionTracker from '@/components/SessionTracker';
 import InvitationsBanner from '@/components/InvitationsBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import NotificationListener from '@/components/NotificationListener';
+import NotificationCenter from '@/components/NotificationCenter';
 
 function AppContent() {
   const { user, loading, signIn, logout } = useAuth();
@@ -146,6 +147,7 @@ function AppContent() {
             {navItems.find(i => i.id === activeTab)?.label}
           </h2>
           <div className="flex items-center space-x-4">
+            <NotificationCenter />
             <Button variant="outline" size="sm">Help & Feedback</Button>
           </div>
         </header>
