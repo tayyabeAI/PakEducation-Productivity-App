@@ -1,6 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot } from './firebase';
+import { 
+  auth, 
+  onAuthStateChanged, 
+  db, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  serverTimestamp, 
+  onSnapshot,
+  collection,
+  query,
+  where,
+  getDocs,
+  signOut,
+  signInWithPopup,
+  googleProvider
+} from './firebase';
 import { UserProfile } from '../types';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -21,7 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Check if email is suspended/deleted (even if UID is different)
-        const { collection, query, where, getDocs } = await import('./firebase');
         const emailQuery = query(collection(db, 'users'), where('email', '==', firebaseUser.email));
         const emailSnapshot = await getDocs(emailQuery);
         
@@ -29,11 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (existingUser) {
           const status = existingUser.data().status;
-          const { signOut } = await import('./firebase');
           await signOut(auth);
           setUser(null);
           setLoading(false);
-          const { toast } = await import('sonner');
           toast.error(`This account has been ${status}. Please contact admin.`);
           return;
         }
@@ -44,7 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const data = snapshot.data() as UserProfile;
             
             if (data.status === 'suspended' || data.status === 'deleted') {
-              const { signOut } = await import('./firebase');
               await signOut(auth);
               setUser(null);
               setLoading(false);
@@ -112,12 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    const { signInWithPopup, googleProvider } = await import('./firebase');
     await signInWithPopup(auth, googleProvider);
   };
 
   const logout = async () => {
-    const { signOut } = await import('./firebase');
     await signOut(auth);
   };
 
