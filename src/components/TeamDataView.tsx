@@ -116,33 +116,43 @@ export default function TeamDataView({ teamId, members }: TeamDataViewProps) {
   };
 
   const buildQuery = (afterDoc: any) => {
-    let constraints: any[] = [
-      where('teamId', '==', teamId),
-      orderBy('createdAt', 'desc')
+    let filters: any[] = [
+      where('teamId', '==', teamId)
     ];
 
     if (!isLeadOrAdmin) {
-      constraints.push(or(
+      filters.push(or(
         where('assignedUserId', '==', user?.uid),
         where('assignedUserId', '==', null)
       ));
     }
 
     if (statusFilter !== 'all') {
-      constraints.push(where('status', '==', statusFilter));
+      filters.push(where('status', '==', statusFilter));
     }
 
     if (userFilter !== 'all') {
       if (userFilter === 'unassigned') {
-        constraints.push(where('assignedUserId', '==', null));
+        filters.push(where('assignedUserId', '==', null));
       } else {
-        constraints.push(where('assignedUserId', '==', userFilter));
+        filters.push(where('assignedUserId', '==', userFilter));
       }
     }
 
     if (sheetFilter !== 'all') {
-      constraints.push(where('sheetName', '==', sheetFilter));
+      filters.push(where('sheetName', '==', sheetFilter));
     }
+
+    let constraints: any[] = [];
+    
+    // Use and() to wrap multiple filters when composite filters (like or) are present
+    if (filters.length > 1) {
+      constraints.push(and(...filters));
+    } else if (filters.length === 1) {
+      constraints.push(filters[0]);
+    }
+
+    constraints.push(orderBy('createdAt', 'desc'));
 
     if (afterDoc) {
       constraints.push(startAfter(afterDoc));
