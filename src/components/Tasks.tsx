@@ -52,6 +52,7 @@ import {
 } from './ui/dropdown-menu';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
+import { logActivity } from '../lib/activity-logger';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 
 // Countdown Timer Component
@@ -253,6 +254,7 @@ export default function Tasks() {
         }
       }
 
+      await logActivity('assignment', `Task assigned: ${newTask.title}`, user.teamId, taskRef.id);
       setIsAddDialogOpen(false);
       setNewTask({
         title: '',
@@ -293,6 +295,7 @@ export default function Tasks() {
         }
       }
 
+      await logActivity('update', `Task updated: ${editingTask.title}`, user?.teamId, editingTask.id);
       setIsEditDialogOpen(false);
       setEditingTask(null);
       toast.success('Task updated');
@@ -336,6 +339,7 @@ export default function Tasks() {
         );
       }
 
+      await logActivity('update', `Task completed: ${completingTask.title}`, user.teamId, completingTask.id);
       setIsCommentDialogOpen(false);
       setCompletingTask(null);
       setCompletionComment('');
@@ -349,6 +353,7 @@ export default function Tasks() {
     if (user?.role === 'admin' || user?.role === 'lead') {
       try {
         await updateDoc(doc(db, 'tasks', task.id), { status: 'deleted' });
+        await logActivity('delete', `Task deleted: ${task.title}`, user?.teamId, task.id);
         toast.success('Task moved to deleted history');
       } catch (error) {
         toast.error('Failed to delete task');

@@ -117,10 +117,11 @@ export interface TeamDataRecord {
 
 export interface ActivityLog {
   id?: string;
-  teamId: string;
-  action: 'upload' | 'assignment' | 'update';
+  teamId?: string | null;
+  action: 'upload' | 'assignment' | 'update' | 'login' | 'role_change' | 'status_change' | 'team_create' | 'team_switch' | 'delete';
   details: string;
   userId: string;
+  userName: string;
   timestamp: any;
   recordId?: string;
 }

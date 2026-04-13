@@ -27,6 +27,9 @@ service cloud.firestore {
     // Collection: feedback
     // Fields: id, userId, message, timestamp
     //
+    // Collection: activity_logs
+    // Fields: teamId, action, details, userId, userName, timestamp
+    //
     // ===============================================================
 
     // ===============================================================
@@ -188,7 +191,7 @@ service cloud.firestore {
     }
     
     match /activity_logs/{logId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && isTeamMember(resource.data.teamId));
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.teamId != null && isTeamMember(resource.data.teamId));
       allow create: if isAuthenticated();
       allow update, delete: if false;
     }

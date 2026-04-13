@@ -129,16 +129,17 @@
     },
     "ActivityLog": {
       "title": "Activity Log",
-      "description": "Log of team activities",
+      "description": "Log of system and team activities",
       "type": "object",
       "properties": {
         "teamId": { "type": "string" },
-        "action": { "type": "string", "enum": ["upload", "assignment", "update"] },
+        "action": { "type": "string", "enum": ["upload", "assignment", "update", "login", "role_change", "status_change", "team_create", "team_switch", "delete"] },
         "details": { "type": "string" },
         "userId": { "type": "string" },
+        "userName": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["teamId", "action", "userId"]
+      "required": ["action", "userId", "userName"]
     },
     "ReportTemplate": {
       "title": "Report Template",

@@ -17,6 +17,7 @@ import {
   signInWithPopup,
   googleProvider
 } from './firebase';
+import { logActivity } from './activity-logger';
 import { UserProfile } from '../types';
 import { toast } from 'sonner';
 
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const lastLogin = data.lastLogin?.toDate?.() || new Date(0);
               if (new Date().getTime() - lastLogin.getTime() > 5 * 60 * 1000) {
                 updates.lastLogin = serverTimestamp();
+                logActivity('login', `User logged in from ${data.providerId || 'direct'}`);
               }
 
               if (Object.keys(updates).length > 0) {

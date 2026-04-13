@@ -15,6 +15,7 @@ import { Label } from './ui/label';
 import { toast } from 'sonner';
 import InviteDialog from './InviteDialog';
 import TeamDataView from './TeamDataView';
+import { logActivity } from '../lib/activity-logger';
 import { handleFirestoreError, OperationType } from '../lib/error-handler';
 
 export default function Team() {
@@ -138,6 +139,7 @@ export default function Team() {
         teamIds: newTeamIds,
         role: (user.role === 'super-admin' || user.role === 'admin') ? user.role : 'lead'
       });
+      await logActivity('team_create', `Created new team: ${teamName}`, teamRef.id);
       setIsCreateDialogOpen(false);
       setTeamName('');
       toast.success('Team created successfully');
@@ -152,6 +154,8 @@ export default function Team() {
       await updateDoc(doc(db, 'users', user.uid), {
         teamId: teamId
       });
+      const teamName = allUserTeams.find(t => t.id === teamId)?.name || teamId;
+      await logActivity('team_switch', `Switched to team: ${teamName}`, teamId);
       toast.success('Switched team');
     } catch (error) {
       toast.error('Failed to switch team');
